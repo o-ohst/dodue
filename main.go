@@ -11,7 +11,7 @@ import (
 	_ "strconv"
 
 	"github.com/jackc/pgx/v4"
-	"github.com/joho/godotenv"
+	// "github.com/joho/godotenv"
 )
 
 //*****************************DATABASE*****************************************
@@ -80,10 +80,10 @@ func handleCategories(w http.ResponseWriter, r *http.Request) {
 //**************************************** Main **************************************
 func main() {
 
-	envErr := godotenv.Load(".env")
-	if envErr != nil {
-		log.Fatalf("Error loading .env file")
-	}
+	// envErr := godotenv.Load(".env")
+	// if envErr != nil {
+	// 	log.Fatalf("Error loading .env file")
+	// }
 
 	var err error
 	db, err = pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
