@@ -60,10 +60,13 @@ func authenticate(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		apiKey := r.Header.Get("api-key")
+		fmt.Println("authenticate, api-key = " + apiKey)
     	if apiKey != os.Getenv("API_SECRET") {
+			fmt.Println("authenticate, failed")
 			w.WriteHeader(403)
 			return
 		} else {
+			fmt.Println("authenticate, passed")
 			next.ServeHTTP(w, r)
 		}
 	})
@@ -115,7 +118,7 @@ func main() {
 	mux := http.NewServeMux()
 	tasksHandler := http.HandlerFunc(handleTasks)
 	categoriesHandler := http.HandlerFunc(handleCategories)
-	
+
 	mux.Handle("/tasks", authenticate(tasksHandler))
 	mux.Handle("/categories", authenticate(categoriesHandler))
 
