@@ -54,6 +54,21 @@ func listTasks() error {
 	return rows.Err()
 }
 
+//*******************************************Middlewares***********************************
+
+func authenticate(next http.Handler) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		apiKey := r.Header.Get("api-key")
+    	if apiKey != os.Getenv("API_SECRET") {
+			w.WriteHeader(403)
+			return
+		} else {
+			next.ServeHTTP(w, r)
+		}
+	})
+}
+
 //******************************************** Routes *************************************
 
 func handleTasks(w http.ResponseWriter, r *http.Request) {
@@ -97,8 +112,12 @@ func main() {
 	fmt.Println(listTasks())
 
 	//**********ROUTES**********
-	http.HandleFunc("/tasks", handleTasks)
-	http.HandleFunc("/categories", handleCategories)
+	mux := http.NewServeMux()
+	tasksHandler := http.HandlerFunc(handleTasks)
+	categoriesHandler := http.HandlerFunc(handleCategories)
+	
+	mux.Handle("/tasks", authenticate(tasksHandler))
+	mux.Handle("/categories", authenticate(categoriesHandler))
 
 	port := os.Getenv("PORT")
 	http.ListenAndServe(":"+port, nil)
