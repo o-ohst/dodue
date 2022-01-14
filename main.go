@@ -5,7 +5,7 @@ import (
 	_ "database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
+	// "log"
 	"net/http"
 	"os"
 	_ "strconv"
