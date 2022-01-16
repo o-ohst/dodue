@@ -122,7 +122,7 @@ func createUser(username string, password string) error {
 
 func readUser(username string) (pgx.Rows, error) {
 
-	rows, err := db.Query(context.Background(), "select * from users where username=", username)
+	rows, err := db.Query(context.Background(), "select * from users where username=$1", username)
 
 	return rows, err
 }
