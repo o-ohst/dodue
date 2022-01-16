@@ -2,127 +2,342 @@ package main
 
 import (
 	"context"
-	_ "database/sql"
 	"encoding/json"
 	"fmt"
-	// "log"
+	"log"
 	"net/http"
 	"os"
-	_ "strconv"
+	"strconv"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/jackc/pgx/v4"
-	// "github.com/joho/godotenv"
+	// "github.com/joho/godotenv" //DEV
+	"golang.org/x/crypto/bcrypt"
 )
 
-//*****************************DATABASE*****************************************
-type Task struct {
-	Name        string `json:"name"`
-	Done        bool   `json:"done"`
-	Task_id     int    `json:"task_id"`
-	Category_id int    `json:"category_id"`
+// func initLocalEnv() {
+// 	err := godotenv.Load(".env")
+// 	if err != nil {
+// 		log.Fatalf("Error loading .env file")
+// 	}
+// 	return
+// }
+
+func handleFatalError(msg string, err error) {
+	if err != nil {
+		log.Fatal(fmt.Errorf(msg+"; %w", err))
+	}
 }
 
-type Category struct {
-	Category_id int `json:"category_id"`
-	Name string `json:"name"`
-	Color int `json:"color"`
+func hashPassword(password string) string {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	handleFatalError("hashPassword", err)
+	return string(bytes)
 }
 
-var tasks []Task
-var categories []Category
+func checkPasswordHash(password, hash string) error {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	handleFatalError("checkPasswordHash", err)
 
-var db *pgx.Conn
-
-func addTask(name string) error {
-	_, err := db.Exec(context.Background(), "insert into tasks(name, task_id) values($1, $2)", name, 1)
 	return err
 }
 
-func listTasks() error {
-	rows, _ := db.Query(context.Background(), "select * from tasks")
+//************************************ Struct ***************************************
 
-	for rows.Next() {
-		var id int32
-		var description string
-		err := rows.Scan(&id, &description)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("%d. %s\n", id, description)
-	}
-
-	return rows.Err()
+type Error struct {
+	Error string `json:"error"`
 }
 
-//*******************************************Middlewares***********************************
+type Task struct {
+	Task_id     int    `json:"task_id"`
+	Name        string `json:"name"`
+	Category_id int    `json:"category_id"`
+	Done        bool   `json:"done"`
+	User_id     int    `json:"user_id"`
+}
 
-func authenticate(next http.Handler) http.Handler {
+type Category struct {
+	Category_id int    `json:"category_id"`
+	Name        string `json:"name"`
+	Color       int    `json:"color"`
+}
+
+type User struct {
+	User_id  int    `json:"user_id"`
+	Username string `json:"username"`
+	Password string `josn:"password"`
+}
+
+//************************************ Database ****************************************
+
+var db *pgx.Conn
+
+func initDb() {
+	var err error
+	db, err = pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	handleFatalError("initDb", err)
+}
+
+//************************************ Task CRUD ****************************************
+
+func createTask(name string, user_id int, category_id int) error {
+	_, err := db.Exec(context.Background(), "insert into tasks(name, user_id, category_id) values($1, $2, $3)", name, user_id, category_id)
+	return err
+}
+
+func readTasks(user_id int) (pgx.Rows, error) {
+	rows, err := db.Query(context.Background(), "select * from tasks where user_id=$1 and done=$2", user_id, false)
+
+	return rows, err
+}
+
+func deleteTask(task_id int) error {
+	_, err := db.Exec(context.Background(), "delete from widgets where id=$1", task_id)
+
+	return err
+}
+
+//************************************ Category CRUD ****************************************
+
+func createCategory(name string, color int) error {
+	_, err := db.Exec(context.Background(), "insert into categories(name, color) values($1, $2)", name, color)
+
+	return err
+}
+
+func readCategories(user_id int) (pgx.Rows, error) {
+	rows, err := db.Query(context.Background(), "select * from tasks where user_id=", user_id)
+
+	return rows, err
+}
+
+//************************************ User CRUD ****************************************
+
+func createUser(username string, password string) error {
+
+	_, err := db.Exec(context.Background(), "insert into users(username, password) values($1, $2)", username, hashPassword(password))
+
+	return err
+}
+
+func readUser(username string) (pgx.Rows, error) {
+
+	rows, err := db.Query(context.Background(), "select * from users where username=", username)
+
+	return rows, err
+}
+
+//******************************************* Middlewares ***********************************
+
+func authApi(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		apiKey := r.Header.Get("api-key")
-		fmt.Println("authenticate, api-key = " + apiKey)
-    	if apiKey != os.Getenv("API_SECRET") {
-			fmt.Println("authenticate, failed")
+		if apiKey != os.Getenv("API_SECRET") {
 			w.WriteHeader(403)
 			return
 		} else {
-			fmt.Println("authenticate, passed")
 			next.ServeHTTP(w, r)
 		}
 	})
 }
 
+func authJwt(next http.Handler) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Header["Token"] != nil {
+
+			token, err := jwt.Parse(r.Header["Token"][0], func(token *jwt.Token) (interface{}, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, fmt.Errorf(("Invalid Signing Method"))
+				}
+				iss := "dodue"
+				checkIss := token.Claims.(jwt.MapClaims).VerifyIssuer(iss, false)
+				if !checkIss {
+					return nil, fmt.Errorf(("invalid iss"))
+				}
+				return os.Getenv("JWT_SECRET"), nil
+
+			})
+
+			if err != nil {
+				fmt.Fprintf(w, err.Error())
+			}
+
+			if token.Valid {
+				next.ServeHTTP(w, r)
+			}
+
+		} else {
+			fmt.Fprintf(w, "No Authorization Token provided")
+		}
+	})
+}
+
+//JWT
+
+func GetJWT(username string) string {
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+
+	claims["authorized"] = true
+	claims["client"] = username
+	claims["iss"] = "dodue"
+
+	tokenString, err := token.SignedString(os.Getenv("JWT_SECRET"))
+	handleFatalError("JWT", err)
+
+	return tokenString
+}
+
 //******************************************** Routes *************************************
 
-func handleTasks(w http.ResponseWriter, r *http.Request) {
+func getTasks(w http.ResponseWriter, r *http.Request) { //req: user_id
 
-	tasks = []Task{
-		Task{Name: "task 1", Done: false, Task_id: 1, Category_id: 1},
-		Task{Name: "task 2", Done: false, Task_id: 2, Category_id: 1},
-		Task{Name: "task 3", Done: false, Task_id: 3, Category_id: 2},
+	var tasks []Task
+
+	user_id, _ := strconv.Atoi(r.Header.Get("user_id"))
+	rows, err := readTasks(user_id)
+
+	if err != nil {
+		e := Error{
+			Error: err.Error(),
+		}
+		json.NewEncoder(w).Encode(e)
+		return
 	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var task Task
+		err := rows.Scan(&task.Task_id, &task.Name, &task.Category_id, &task.Done, &task.User_id)
+		handleFatalError("getTasks scan", err)
+		tasks = append(tasks, task)
+	}
+
 	json.NewEncoder(w).Encode(tasks)
 
 }
 
-func handleCategories(w http.ResponseWriter, r *http.Request) {
+func newTask(w http.ResponseWriter, r *http.Request) {
 
-	categories = []Category{
-		Category{Name: "category 1", Category_id: 1, Color: 0},
-		Category{Name: "category 2", Category_id: 2, Color: 1},
+	user_id, _ := strconv.Atoi(r.Header.Get("user_id"))
+	decoder := json.NewDecoder(r.Body)
+	var task Task
+	err := decoder.Decode(&task)
+	handleFatalError("postTask", err)
+	err2 := createTask(task.Name, user_id, task.Category_id)
+	handleFatalError("postTask createTask", err2)
+
+}
+
+func getCategories(w http.ResponseWriter, r *http.Request) { //req: user_id
+
+	var categories []Category
+
+	user_id, _ := strconv.Atoi(r.Header.Get("user_id"))
+	rows, err := readCategories(user_id)
+
+	if err != nil {
+		e := Error{
+			Error: err.Error(),
+		}
+		json.NewEncoder(w).Encode(e)
+		return
 	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var category Category
+		err := rows.Scan(&category.Category_id, &category.Name, &category.Color)
+		handleFatalError("getCategories scan", err)
+		categories = append(categories, category)
+	}
+
 	json.NewEncoder(w).Encode(categories)
+
+}
+
+func login(w http.ResponseWriter, r *http.Request) { //req: username, password
+
+	username := r.Header.Get("username")
+	password := r.Header.Get("password")
+	rows, err := readUser(username)
+
+	if err != nil {
+		e := Error{
+			Error: err.Error(),
+		}
+		json.NewEncoder(w).Encode(e)
+		return
+	}
+
+	defer rows.Close()
+
+	var user User
+	err2 := rows.Scan(&user.User_id, &user.Username, &user.Password)
+	handleFatalError("login scan", err2)
+
+	err3 := checkPasswordHash(password, user.Password)
+	if err3 != nil {
+		e := Error{
+			Error: err.Error(),
+		}
+		json.NewEncoder(w).Encode(e)
+		return
+	} else {
+		token := GetJWT(username)
+		http.SetCookie(w, &http.Cookie{
+			Name:     "token",
+			Value:    token,
+			HttpOnly: true,
+			Secure:   true,
+		})
+		http.SetCookie(w, &http.Cookie{
+			Name:  "username",
+			Value: user.Username,
+		})
+	}
+}
+
+func signup(w http.ResponseWriter, r *http.Request) { //req: username, password
+
+	username := r.Header.Get("username")
+	password := r.Header.Get("password")
+	err := createUser(username, password)
+
+	if err != nil {
+		e := Error{
+			Error: err.Error(),
+		}
+		json.NewEncoder(w).Encode(e)
+		return
+	}
 
 }
 
 //**************************************** Main **************************************
 func main() {
 
-	// envErr := godotenv.Load(".env")
-	// if envErr != nil {
-	// 	log.Fatalf("Error loading .env file")
-	// }
+	//DEV
+	// initLocalEnv()
 
-	var err error
-	db, err = pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-		os.Exit(1)
-	}
+	initDb()
 	defer db.Close(context.Background())
 
-	// fmt.Println(addTask("hello"))
-	fmt.Println(listTasks())
-
-	//**********ROUTES**********
+	//************************* Routes *************************
 	mux := http.NewServeMux()
-	tasksHandler := http.HandlerFunc(handleTasks)
-	categoriesHandler := http.HandlerFunc(handleCategories)
 
-	mux.Handle("/tasks", authenticate(tasksHandler))
-	mux.Handle("/categories", authenticate(categoriesHandler))
+	tasksHandler := http.HandlerFunc(getTasks)
+	categoriesHandler := http.HandlerFunc(getCategories)
+
+	mux.Handle("/tasks", authJwt(authApi(tasksHandler)))
+	mux.Handle("/categories", authJwt(authApi(categoriesHandler)))
 
 	port := os.Getenv("PORT")
-	http.ListenAndServe(":"+port, nil)
+	http.ListenAndServe(":"+port, mux)
 
 }
