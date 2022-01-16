@@ -121,8 +121,11 @@ func createUser(username string, password string) error {
 }
 
 func readUser(username string) (pgx.Rows, error) {
+	log.Print(username)
 
 	rows, err := db.Query(context.Background(), "select * from users where username=$1", username)
+	log.Print("query finished")
+	log.Print(rows.CommandTag().RowsAffected())
 
 	return rows, err
 }
