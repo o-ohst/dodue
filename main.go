@@ -277,7 +277,9 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 
 	username := r.Header.Get("username")
 	password := r.Header.Get("password")
+	log.Print("logging in")
 	rows, err := readUser(username)
+	log.Print("finished readUser")
 
 	if err != nil {
 		e := Error{
@@ -292,8 +294,11 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 	var user User
 	err2 := rows.Scan(&user.User_id, &user.Username, &user.Password)
 	handleFatalError("login scan", err2)
+	log.Print("finished scan")
 
 	err3 := checkPasswordHash(password, user.Password)
+	log.Print("finished check hash")
+
 	if err3 != nil {
 		e := Error{
 			Error: err.Error(),
@@ -301,13 +306,16 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 		json.NewEncoder(w).Encode(e)
 		return
 	} else {
+
 		token := GetJWT(username)
+		log.Print("got jwt")
 		http.SetCookie(w, &http.Cookie{
 			Name:     "token",
 			Value:    token,
 			HttpOnly: true,
 			Secure:   true,
 		})
+		log.Print("set cookie")
 		http.SetCookie(w, &http.Cookie{
 			Name:  "username",
 			Value: user.Username,
