@@ -293,6 +293,7 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 	}
 
 	defer rows.Close()
+	rows.Next()
 
 	var user User
 	err2 := rows.Scan(&user.User_id, &user.Username, &user.Password)
