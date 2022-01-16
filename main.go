@@ -160,7 +160,7 @@ func authJwt(next http.Handler) http.Handler {
 				if !checkIss {
 					return nil, fmt.Errorf(("invalid iss"))
 				}
-				return os.Getenv("JWT_SECRET"), nil
+				return []byte(os.Getenv("JWT_SECRET")), nil
 
 			})
 
@@ -321,8 +321,8 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 		})
 		log.Print("set cookie")
 		http.SetCookie(w, &http.Cookie{
-			Name:  "username",
-			Value: user.Username,
+			Name:  "user_id",
+			Value: strconv.Itoa(user.User_id),
 		})
 	}
 }
