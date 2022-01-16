@@ -188,7 +188,7 @@ func GetJWT(username string) string {
 	claims["client"] = username
 	claims["iss"] = "dodue"
 
-	tokenString, err := token.SignedString(os.Getenv("JWT_SECRET"))
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 	handleFatalError("JWT", err)
 
 	return tokenString
@@ -310,9 +310,9 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 		json.NewEncoder(w).Encode(e)
 		return
 	} else {
-
 		token := GetJWT(username)
 		log.Print("got jwt")
+
 		http.SetCookie(w, &http.Cookie{
 			Name:     "token",
 			Value:    token,
