@@ -221,18 +221,6 @@ func getTasks(w http.ResponseWriter, r *http.Request) { //req: user_id
 
 }
 
-func newTask(w http.ResponseWriter, r *http.Request) {
-
-	user_id, _ := strconv.Atoi(r.Header.Get("user_id"))
-	decoder := json.NewDecoder(r.Body)
-	var task Task
-	err := decoder.Decode(&task)
-	handleFatalError("postTask", err)
-	err2 := createTask(task.Name, user_id, task.Category_id)
-	handleFatalError("postTask createTask", err2)
-
-}
-
 func getCategories(w http.ResponseWriter, r *http.Request) { //req: user_id
 
 	var categories []Category
@@ -258,6 +246,30 @@ func getCategories(w http.ResponseWriter, r *http.Request) { //req: user_id
 	}
 
 	json.NewEncoder(w).Encode(categories)
+
+}
+
+func newTask(w http.ResponseWriter, r *http.Request) {
+
+	user_id, _ := strconv.Atoi(r.Header.Get("user_id"))
+	decoder := json.NewDecoder(r.Body)
+	var task Task
+	err := decoder.Decode(&task)
+	handleFatalError("newTask", err)
+	err2 := createTask(task.Name, user_id, task.Category_id)
+	handleFatalError("newTask createTask", err2)
+
+}
+
+func newCategory(w http.ResponseWriter, r *http.Request) {
+
+	user_id, _ := strconv.Atoi(r.Header.Get("user_id"))
+	decoder := json.NewDecoder(r.Body)
+	var category Category
+	err := decoder.Decode(&category)
+	handleFatalError("postCategory", err)
+	err2 := createTask(category.Name, user_id, category.Category_id)
+	handleFatalError("newCategory newCategory", err2)
 
 }
 
@@ -333,10 +345,14 @@ func main() {
 
 	tasksHandler := http.HandlerFunc(getTasks)
 	categoriesHandler := http.HandlerFunc(getCategories)
+	signupHandler := http.HandlerFunc(signup)
+	loginHandler := http.HandlerFunc(login)
 
 	mux.Handle("/tasks", authJwt(authApi(tasksHandler)))
 	mux.Handle("/categories", authJwt(authApi(categoriesHandler)))
-
+	mux.Handle("/signup", authApi(signupHandler))
+	mux.Handle("/login", authApi(loginHandler))
+	
 	port := os.Getenv("PORT")
 	http.ListenAndServe(":"+port, mux)
 
