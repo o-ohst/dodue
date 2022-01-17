@@ -221,8 +221,7 @@ func authJwt(next http.Handler) http.Handler {
 func checkUserCookie(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userCookie, _ := r.Cookie("user_id")
-		_, err := strconv.Atoi(userCookie.Value)
+		_, err := r.Cookie("user_id")
 		if err != nil {
 			writeErrorMessageToResponse(w, "no user_id cookie provided")
 			return
@@ -450,7 +449,7 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 			Name:     "token",
 			Value:    token,
 			HttpOnly: true,
-			Secure:   true, //DEV
+			// Secure:   true, //DEV
 		})
 		http.SetCookie(w, &http.Cookie{
 			Name:  "user_id",
@@ -494,7 +493,7 @@ func signup(w http.ResponseWriter, r *http.Request) { //req: username, password
 func main() {
 
 	//DEV
-	// initLocalEnv()
+	initLocalEnv()
 
 	initDb()
 	defer db.Close(context.Background())
