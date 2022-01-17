@@ -11,35 +11,65 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/jackc/pgx/v4"
-	// "github.com/joho/godotenv" //DEV
+
+	"github.com/joho/godotenv" //DEV
 	"golang.org/x/crypto/bcrypt"
 )
 
-// func initLocalEnv() {
-// 	err := godotenv.Load(".env")
-// 	if err != nil {
-// 		log.Fatalf("Error loading .env file")
-// 	}
-// 	return
-// }
-
-func handleFatalError(msg string, err error) {
+func initLocalEnv() {
+	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatal(fmt.Errorf(msg+"; %w", err))
+		log.Fatalf("Error loading .env file")
+	}
+}
+
+func writeErrorToResponse(w http.ResponseWriter, err error) {
+	if err != nil {
+		e := Error{
+			Error: err.Error(),
+		}
+		json.NewEncoder(w).Encode(e)
+	}
+}
+
+func writeErrorMessageToResponse(w http.ResponseWriter, errorMessage string) {
+	e := Error{
+		Error: errorMessage,
+	}
+	json.NewEncoder(w).Encode(e)
+}
+
+func logError(msg string, err error) {
+	if err != nil {
+		log.Print(fmt.Errorf(msg+"; %w", err))
 	}
 }
 
 func hashPassword(password string) string {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	handleFatalError("hashPassword", err)
+	logError("hashPassword", err)
 	return string(bytes)
 }
 
 func checkPasswordHash(password, hash string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	handleFatalError("checkPasswordHash", err)
+	logError("checkPasswordHash", err)
 
 	return err
+}
+
+func GetJWT(username string) string {
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+
+	claims["authorized"] = true
+	claims["username"] = username
+	claims["iss"] = "dodue"
+
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	logError("JWT", err)
+
+	return tokenString
 }
 
 //************************************ Struct ***************************************
@@ -60,6 +90,7 @@ type Category struct {
 	Category_id int    `json:"category_id"`
 	Name        string `json:"name"`
 	Color       int    `json:"color"`
+	User_id     int    `json:"user_id"`
 }
 
 type User struct {
@@ -75,7 +106,7 @@ var db *pgx.Conn
 func initDb() {
 	var err error
 	db, err = pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
-	handleFatalError("initDb", err)
+	logError("initDb", err)
 }
 
 //************************************ Task CRUD ****************************************
@@ -91,6 +122,12 @@ func readTasks(user_id int) (pgx.Rows, error) {
 	return rows, err
 }
 
+func updateTaskDone(task_id int, done bool) error {
+	_, err := db.Exec(context.Background(), "update tasks set done=$1 where task_id=$2", done, task_id)
+
+	return err
+}
+
 func deleteTask(task_id int) error {
 	_, err := db.Exec(context.Background(), "delete from widgets where id=$1", task_id)
 
@@ -99,14 +136,14 @@ func deleteTask(task_id int) error {
 
 //************************************ Category CRUD ****************************************
 
-func createCategory(name string, color int) error {
-	_, err := db.Exec(context.Background(), "insert into categories(name, color) values($1, $2)", name, color)
+func createCategory(name string, color int, user_id int) error {
+	_, err := db.Exec(context.Background(), "insert into categories(name, color, user_id) values($1, $2, $3)", name, color, user_id)
 
 	return err
 }
 
 func readCategories(user_id int) (pgx.Rows, error) {
-	rows, err := db.Query(context.Background(), "select * from tasks where user_id=", user_id)
+	rows, err := db.Query(context.Background(), "select * from categories where user_id=$1", user_id)
 
 	return rows, err
 }
@@ -124,8 +161,6 @@ func readUser(username string) (pgx.Rows, error) {
 	log.Print(username)
 
 	rows, err := db.Query(context.Background(), "select * from users where username=$1", username)
-	log.Print("query finished")
-	log.Print(rows.CommandTag().RowsAffected())
 
 	return rows, err
 }
@@ -149,23 +184,27 @@ func authJwt(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		if r.Header["Token"] != nil {
+		tokenCookie, err := r.Cookie("token")
 
-			token, err := jwt.Parse(r.Header["Token"][0], func(token *jwt.Token) (interface{}, error) {
+		if err == nil {
+
+			token, err := jwt.Parse(tokenCookie.Value, func(token *jwt.Token) (interface{}, error) {
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, fmt.Errorf(("Invalid Signing Method"))
+					return nil, fmt.Errorf(("invalid signing method"))
 				}
+
 				iss := "dodue"
-				checkIss := token.Claims.(jwt.MapClaims).VerifyIssuer(iss, false)
+				checkIss := token.Claims.(jwt.MapClaims).VerifyIssuer(iss, true)
 				if !checkIss {
 					return nil, fmt.Errorf(("invalid iss"))
 				}
+
 				return []byte(os.Getenv("JWT_SECRET")), nil
 
 			})
 
 			if err != nil {
-				fmt.Fprintf(w, err.Error())
+				logError("authJwt Parse", err)
 			}
 
 			if token.Valid {
@@ -173,41 +212,45 @@ func authJwt(next http.Handler) http.Handler {
 			}
 
 		} else {
-			fmt.Fprintf(w, "No Authorization Token provided")
+			writeErrorMessageToResponse(w, "no authorization token provided")
+			return
 		}
 	})
 }
 
-//JWT
+func checkUserCookie(next http.Handler) http.Handler {
 
-func GetJWT(username string) string {
-	token := jwt.New(jwt.SigningMethodHS256)
-	claims := token.Claims.(jwt.MapClaims)
-
-	claims["authorized"] = true
-	claims["client"] = username
-	claims["iss"] = "dodue"
-
-	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
-	handleFatalError("JWT", err)
-
-	return tokenString
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userCookie, _ := r.Cookie("user_id")
+		_, err := strconv.Atoi(userCookie.Value)
+		if err != nil {
+			writeErrorMessageToResponse(w, "no user_id cookie provided")
+			return
+		} else {
+			next.ServeHTTP(w, r)
+		}
+	})
 }
 
-//******************************************** Routes *************************************
+//******************************************** Endpoints *************************************
 
 func getTasks(w http.ResponseWriter, r *http.Request) { //req: user_id
 
-	var tasks []Task
+	if r.Method != "GET" {
+		w.WriteHeader(404)
+		return
+	}
 
-	user_id, _ := strconv.Atoi(r.Header.Get("user_id"))
+	var tasks []Task
+	var user_id int
+
+	userCookie, _ := r.Cookie("user_id")
+	user_id, _ = strconv.Atoi(userCookie.Value)
+
 	rows, err := readTasks(user_id)
 
 	if err != nil {
-		e := Error{
-			Error: err.Error(),
-		}
-		json.NewEncoder(w).Encode(e)
+		writeErrorToResponse(w, err)
 		return
 	}
 
@@ -216,7 +259,11 @@ func getTasks(w http.ResponseWriter, r *http.Request) { //req: user_id
 	for rows.Next() {
 		var task Task
 		err := rows.Scan(&task.Task_id, &task.Name, &task.Category_id, &task.Done, &task.User_id)
-		handleFatalError("getTasks scan", err)
+		if err != nil {
+			logError("getTasks scan", err)
+			writeErrorToResponse(w, err)
+			return
+		}
 		tasks = append(tasks, task)
 	}
 
@@ -226,16 +273,19 @@ func getTasks(w http.ResponseWriter, r *http.Request) { //req: user_id
 
 func getCategories(w http.ResponseWriter, r *http.Request) { //req: user_id
 
+	if r.Method != "GET" {
+		w.WriteHeader(404)
+		return
+	}
+
 	var categories []Category
 
-	user_id, _ := strconv.Atoi(r.Header.Get("user_id"))
+	userCookie, _ := r.Cookie("user_id")
+	user_id, _ := strconv.Atoi(userCookie.Value)
 	rows, err := readCategories(user_id)
 
 	if err != nil {
-		e := Error{
-			Error: err.Error(),
-		}
-		json.NewEncoder(w).Encode(e)
+		writeErrorToResponse(w, err)
 		return
 	}
 
@@ -244,7 +294,11 @@ func getCategories(w http.ResponseWriter, r *http.Request) { //req: user_id
 	for rows.Next() {
 		var category Category
 		err := rows.Scan(&category.Category_id, &category.Name, &category.Color)
-		handleFatalError("getCategories scan", err)
+		if err != nil {
+			logError("getCategories scan", err)
+			writeErrorToResponse(w, err)
+			return
+		}
 		categories = append(categories, category)
 	}
 
@@ -252,64 +306,143 @@ func getCategories(w http.ResponseWriter, r *http.Request) { //req: user_id
 
 }
 
-func newTask(w http.ResponseWriter, r *http.Request) {
+func newTask(w http.ResponseWriter, r *http.Request) { //req: user_id, name
 
-	user_id, _ := strconv.Atoi(r.Header.Get("user_id"))
+	if r.Method != "POST" {
+		w.WriteHeader(404)
+		return
+	}
+
+	userCookie, _ := r.Cookie("user_id")
+	user_id, _ := strconv.Atoi(userCookie.Value)
 	decoder := json.NewDecoder(r.Body)
 	var task Task
 	err := decoder.Decode(&task)
-	handleFatalError("newTask", err)
+	logError("newTask", err)
+
+	if task.Name == "" {
+		log.Print("empty name")
+		writeErrorMessageToResponse(w, "no name provided")
+		return
+	}
+
+	if task.Category_id == 0 {
+		log.Print("empty category id")
+		writeErrorMessageToResponse(w, "no category_id provided")
+		return
+	}
+
 	err2 := createTask(task.Name, user_id, task.Category_id)
-	handleFatalError("newTask createTask", err2)
+	logError("newTask createTask", err2)
+	if err2 != nil {
+		writeErrorToResponse(w, err2)
+		return
+	}
+
+}
+
+func doneTask(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != "PUT" {
+		w.WriteHeader(404)
+		return
+	}
+
+	task_id, _ := strconv.Atoi(r.Header.Get("task_id"))
+
+	err := updateTaskDone(task_id, true)
+	if err != nil {
+		logError("doneTask updateTaskDone", err)
+		writeErrorToResponse(w, err)
+		return
+	}
 
 }
 
 func newCategory(w http.ResponseWriter, r *http.Request) {
 
-	user_id, _ := strconv.Atoi(r.Header.Get("user_id"))
+	if r.Method != "POST" {
+		w.WriteHeader(404)
+		return
+	}
+
+	userCookie, _ := r.Cookie("user_id")
+	user_id, _ := strconv.Atoi(userCookie.Value)
 	decoder := json.NewDecoder(r.Body)
 	var category Category
 	err := decoder.Decode(&category)
-	handleFatalError("postCategory", err)
-	err2 := createTask(category.Name, user_id, category.Category_id)
-	handleFatalError("newCategory newCategory", err2)
+	logError("postCategory", err)
+
+	if category.Name == "" {
+		log.Print("empty name")
+		writeErrorMessageToResponse(w, "no name provided")
+		return
+	}
+
+	// if category.Color == 0 {
+	// 	log.Print("empty category id")
+	// 	writeErrorMessageToResponse(w, "no category_id provided")
+	// 	return
+	// }
+
+	err2 := createCategory(category.Name, category.Color, user_id)
+	if err2 != nil {
+		logError("newCategory newCategory", err2)
+		writeErrorToResponse(w, err2)
+		return
+	}
 
 }
 
 func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 
-	username := r.Header.Get("username")
-	password := r.Header.Get("password")
-	log.Print("logging in")
-	rows, err := readUser(username)
-	log.Print("finished readUser")
-
-	if err != nil {
-		e := Error{
-			Error: err.Error(),
-		}
-		json.NewEncoder(w).Encode(e)
+	if r.Method != "POST" {
+		w.WriteHeader(404)
 		return
 	}
 
+	username := r.Header.Get("username")
+	password := r.Header.Get("password")
+
+	if username == "" {
+		writeErrorMessageToResponse(w, "no username provided")
+		return
+	}
+
+	if password == "" {
+		writeErrorMessageToResponse(w, "no password provided")
+		return
+	}
+
+	rows, err := readUser(username)
+	if err != nil {
+		logError("login readUser", err)
+		writeErrorToResponse(w, err)
+		return
+	}
 	defer rows.Close()
-	rows.Next()
+	if !rows.Next() {
+		log.Print("login readUser; user not found")
+		writeErrorMessageToResponse(w, "user not found")
+		return
+	}
 
 	var user User
 	err2 := rows.Scan(&user.User_id, &user.Username, &user.Password)
-	handleFatalError("login scan", err2)
-	log.Print("finished scan")
+	if err2 != nil {
+		logError("login scan", err2)
+		return
+	}
 
 	err3 := checkPasswordHash(password, user.Password)
-	log.Print("finished check hash")
-
 	if err3 != nil {
-		e := Error{
-			Error: err.Error(),
-		}
-		json.NewEncoder(w).Encode(e)
+
+		logError("login checkPasswordHash", err3)
+		writeErrorMessageToResponse(w, "wrong password")
 		return
-	} else {
+
+	} else { //login success!
+
 		token := GetJWT(username)
 		log.Print("got jwt")
 
@@ -317,27 +450,41 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 			Name:     "token",
 			Value:    token,
 			HttpOnly: true,
-			Secure:   true,
+			Secure:   true, //DEV
 		})
-		log.Print("set cookie")
 		http.SetCookie(w, &http.Cookie{
 			Name:  "user_id",
 			Value: strconv.Itoa(user.User_id),
 		})
+
 	}
 }
 
 func signup(w http.ResponseWriter, r *http.Request) { //req: username, password
 
+	if r.Method != "POST" {
+		w.WriteHeader(404)
+		return
+	}
+
 	username := r.Header.Get("username")
 	password := r.Header.Get("password")
+
+	if username == "" {
+		writeErrorMessageToResponse(w, "no username provided")
+		return
+	}
+
+	if password == "" {
+		writeErrorMessageToResponse(w, "no password provided")
+		return
+	}
+
 	err := createUser(username, password)
 
 	if err != nil {
-		e := Error{
-			Error: err.Error(),
-		}
-		json.NewEncoder(w).Encode(e)
+		logError("signup createUser", err)
+		writeErrorToResponse(w, err)
 		return
 	}
 
@@ -352,19 +499,27 @@ func main() {
 	initDb()
 	defer db.Close(context.Background())
 
-	//************************* Routes *************************
+	//************************* Endpints *************************
 	mux := http.NewServeMux()
 
-	tasksHandler := http.HandlerFunc(getTasks)
-	categoriesHandler := http.HandlerFunc(getCategories)
+	getTasksHandler := http.HandlerFunc(getTasks)
+	newTaskHandler := http.HandlerFunc(newTask)
+	doneTaskHandler := http.HandlerFunc(doneTask)
+	getCategoriesHandler := http.HandlerFunc(getCategories)
+	newCategoryHandler := http.HandlerFunc(newCategory)
 	signupHandler := http.HandlerFunc(signup)
 	loginHandler := http.HandlerFunc(login)
 
-	mux.Handle("/tasks", authJwt(authApi(tasksHandler)))
-	mux.Handle("/categories", authJwt(authApi(categoriesHandler)))
-	mux.Handle("/signup", authApi(signupHandler))
-	mux.Handle("/login", authApi(loginHandler))
-	
+	mux.Handle("/tasks", checkUserCookie(authJwt(authApi(getTasksHandler))))      //GET
+	mux.Handle("/tasks/new", checkUserCookie(authJwt(authApi(newTaskHandler))))   //POST
+	mux.Handle("/tasks/done", checkUserCookie(authJwt(authApi(doneTaskHandler)))) //PUT
+
+	mux.Handle("/categories", checkUserCookie(authJwt(authApi(getCategoriesHandler))))   //GET
+	mux.Handle("/categories/new", checkUserCookie(authJwt(authApi(newCategoryHandler)))) //POST
+
+	mux.Handle("/signup", authApi(signupHandler)) //POST
+	mux.Handle("/login", authApi(loginHandler))   //POST
+
 	port := os.Getenv("PORT")
 	http.ListenAndServe(":"+port, mux)
 
