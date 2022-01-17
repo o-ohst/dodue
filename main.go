@@ -171,6 +171,13 @@ func authApi(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		apiKey := r.Header.Get("api-key")
+
+		if apiKey == "" {
+			log.Print("no api key provided")
+			w.WriteHeader(403)
+			return
+		}
+
 		if apiKey != os.Getenv("API_SECRET") {
 			w.WriteHeader(403)
 			return
@@ -449,7 +456,7 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 			Name:     "token",
 			Value:    token,
 			HttpOnly: true,
-			// Secure:   true, //DEV
+			Secure:   true, //DEV
 		})
 		http.SetCookie(w, &http.Cookie{
 			Name:  "user_id",
@@ -493,7 +500,7 @@ func signup(w http.ResponseWriter, r *http.Request) { //req: username, password
 func main() {
 
 	//DEV
-	initLocalEnv()
+	// initLocalEnv()
 
 	initDb()
 	defer db.Close(context.Background())
