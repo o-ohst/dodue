@@ -516,12 +516,12 @@ func main() {
 	signupHandler := http.HandlerFunc(signup)
 	loginHandler := http.HandlerFunc(login)
 
-	mux.Handle("/tasks", checkUserCookie(authJwt(authApi(getTasksHandler))))      //GET
-	mux.Handle("/tasks/new", checkUserCookie(authJwt(authApi(newTaskHandler))))   //POST
-	mux.Handle("/tasks/done", checkUserCookie(authJwt(authApi(doneTaskHandler)))) //PUT
+	mux.Handle("/tasks", authApi(authJwt(checkUserCookie(getTasksHandler))))    //GET
+	mux.Handle("/tasks/new", authApi(authJwt(checkUserCookie(newTaskHandler))))   //POST
+	mux.Handle("/tasks/done", authApi(authJwt(checkUserCookie(doneTaskHandler)))) //PUT
 
-	mux.Handle("/categories", checkUserCookie(authJwt(authApi(getCategoriesHandler))))   //GET
-	mux.Handle("/categories/new", checkUserCookie(authJwt(authApi(newCategoryHandler)))) //POST
+	mux.Handle("/categories", authApi(authJwt(checkUserCookie(getCategoriesHandler))))   //GET
+	mux.Handle("/categories/new", authApi(authJwt(checkUserCookie(newCategoryHandler)))) //POST
 
 	mux.Handle("/signup", authApi(signupHandler)) //POST
 	mux.Handle("/login", authApi(loginHandler))   //POST
