@@ -238,6 +238,19 @@ func checkUserCookie(next http.Handler) http.Handler {
 	})
 }
 
+func cors(next http.Handler) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+    	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+    	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, token, user_id, api_key")
+		next.ServeHTTP(w, r)
+	})
+}
+
+
+ 
+
 //******************************************** Endpoints *************************************
 
 func getTasks(w http.ResponseWriter, r *http.Request) { //req: user_id
@@ -516,15 +529,15 @@ func main() {
 	signupHandler := http.HandlerFunc(signup)
 	loginHandler := http.HandlerFunc(login)
 
-	mux.Handle("/tasks", authApi(authJwt(checkUserCookie(getTasksHandler))))      //GET
-	mux.Handle("/tasks/new", authApi(authJwt(checkUserCookie(newTaskHandler))))   //POST
-	mux.Handle("/tasks/done", authApi(authJwt(checkUserCookie(doneTaskHandler)))) //PUT
+	mux.Handle("/tasks", cors(authApi(authJwt(checkUserCookie(getTasksHandler)))))      //GET
+	mux.Handle("/tasks/new", cors(authApi(authJwt(checkUserCookie(newTaskHandler)))))  //POST
+	mux.Handle("/tasks/done", cors(authApi(authJwt(checkUserCookie(doneTaskHandler))))) //PUT
 
-	mux.Handle("/categories", authApi(authJwt(checkUserCookie(getCategoriesHandler))))   //GET
-	mux.Handle("/categories/new", authApi(authJwt(checkUserCookie(newCategoryHandler)))) //POST
+	mux.Handle("/categories", cors(authApi(authJwt(checkUserCookie(getCategoriesHandler)))))   //GET
+	mux.Handle("/categories/new", cors(authApi(authJwt(checkUserCookie(newCategoryHandler))))) //POST
 
-	mux.Handle("/signup", authApi(signupHandler)) //POST
-	mux.Handle("/login", authApi(loginHandler))   //POST
+	mux.Handle("/signup", cors(authApi(signupHandler))) //POST
+	mux.Handle("/login", cors(authApi(loginHandler)))   //POST
 
 	port := os.Getenv("PORT")
 	http.ListenAndServe(":"+port, mux)
