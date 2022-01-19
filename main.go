@@ -478,7 +478,7 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 			Name:     "token",
 			Value:    token,
 			HttpOnly: true,
-			Secure:   true, //DEV
+			// Secure:   true, //DEV
 		})
 		http.SetCookie(w, &http.Cookie{
 			Name:  "user_id",
