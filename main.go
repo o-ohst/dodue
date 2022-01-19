@@ -244,7 +244,13 @@ func cors(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
     	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
     	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, token, user_id, api_key")
-		next.ServeHTTP(w, r)
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(200)
+			return
+		} else {
+			next.ServeHTTP(w, r)
+		}
 	})
 }
 
