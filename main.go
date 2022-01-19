@@ -244,6 +244,7 @@ func cors(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
     	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
     	w.Header().Set("Access-Control-Allow-Headers", "*")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(200)
@@ -478,11 +479,14 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 			Name:     "token",
 			Value:    token,
 			HttpOnly: true,
-			// Secure:   true, //DEV
+			Secure:   true,
+			SameSite: http.SameSiteNoneMode,
 		})
 		http.SetCookie(w, &http.Cookie{
 			Name:  "user_id",
 			Value: strconv.Itoa(user.User_id),
+			Secure:   true,
+			SameSite: http.SameSiteNoneMode,
 		})
 
 	}
