@@ -481,7 +481,6 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 		http.SetCookie(w, &http.Cookie{
 			Name:     "token",
 			Value:    token,
-			HttpOnly: true,
 			Secure:   true,
 			SameSite: http.SameSiteNoneMode,
 			Path: "/",
