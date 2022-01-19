@@ -429,6 +429,9 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 	username := r.Header.Get("username")
 	password := r.Header.Get("password")
 
+	log.Print(username)
+	log.Print(password)
+
 	if username == "" {
 		writeErrorMessageToResponse(w, "no username provided")
 		return
