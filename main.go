@@ -170,7 +170,7 @@ func readUser(username string) (pgx.Rows, error) {
 func authApi(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		apiKey := r.Header.Get("api-key")
+		apiKey := r.Header.Get("api_key")
 
 		if apiKey == "" {
 			log.Print("no api key provided")
@@ -516,7 +516,7 @@ func main() {
 	signupHandler := http.HandlerFunc(signup)
 	loginHandler := http.HandlerFunc(login)
 
-	mux.Handle("/tasks", authApi(authJwt(checkUserCookie(getTasksHandler))))    //GET
+	mux.Handle("/tasks", authApi(authJwt(checkUserCookie(getTasksHandler))))      //GET
 	mux.Handle("/tasks/new", authApi(authJwt(checkUserCookie(newTaskHandler))))   //POST
 	mux.Handle("/tasks/done", authApi(authJwt(checkUserCookie(doneTaskHandler)))) //PUT
 
