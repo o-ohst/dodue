@@ -244,9 +244,9 @@ func cors(next http.Handler) http.Handler {
 
 		log.Print(r)
 
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Origin", "https://dodue.netlify.app")
     	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-    	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, ontent-type, content-length,  Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, token, user_id, api_key, task_id, category_id, username, password, set-cookie")
+    	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type,  Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, DNT, Referer, token, user_id, api_key, task_id, category_id, username, password, set-cookie")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
