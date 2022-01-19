@@ -481,12 +481,14 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 			HttpOnly: true,
 			Secure:   true,
 			SameSite: http.SameSiteNoneMode,
+			Path: "/",
 		})
 		http.SetCookie(w, &http.Cookie{
 			Name:  "user_id",
 			Value: strconv.Itoa(user.User_id),
 			Secure:   true,
 			SameSite: http.SameSiteNoneMode,
+			Path: "/",
 		})
 
 	}
