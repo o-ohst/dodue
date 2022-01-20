@@ -322,7 +322,7 @@ func getCategories(w http.ResponseWriter, r *http.Request) { //req: user_id
 
 	for rows.Next() {
 		var category Category
-		err := rows.Scan(&category.Category_id, &category.Name, &category.Color)
+		err := rows.Scan(&category.Category_id, &category.Name, &category.Color, &category.User_id)
 		if err != nil {
 			logError("getCategories scan", err)
 			writeErrorToResponse(w, err)
