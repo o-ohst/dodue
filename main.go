@@ -390,6 +390,9 @@ func doneTask(w http.ResponseWriter, r *http.Request) {
 
 	task_id, _ := strconv.Atoi(r.Header.Get("task_id"))
 	done, _ := strconv.ParseBool(r.Header.Get("done"))
+	
+	log.Print(r.Header.Get("done"))
+	log.Print(done)
 
 	err := updateTaskDone(task_id, done)
 	if err != nil {
