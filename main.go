@@ -134,6 +134,7 @@ func readTasks(user_id int) (pgx.Rows, error) {
 }
 
 func updateTaskDone(task_id int, done bool) error {
+	log.Print(done)
 	_, err := db.Exec(context.Background(), "update tasks set done=$1 where task_id=$2", done, task_id)
 
 	return err
