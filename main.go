@@ -12,6 +12,7 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 
 	"github.com/joho/godotenv" //DEV
 	"golang.org/x/crypto/bcrypt"
@@ -112,11 +113,11 @@ type NewTask struct {
 
 //************************************ Database ****************************************
 
-var db *pgx.Conn
+var db *pgxpool.Pool
 
 func initDb() {
 	var err error
-	db, err = pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	db, err = pgxpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	logError("initDb", err)
 }
 
@@ -547,7 +548,7 @@ func main() {
 	// initLocalEnv()
 
 	initDb()
-	defer db.Close(context.Background())
+	defer db.Close()
 
 	//************************* Endpints *************************
 	mux := http.NewServeMux()
