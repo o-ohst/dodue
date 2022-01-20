@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/jackc/pgx/v4"
@@ -97,6 +98,16 @@ type User struct {
 	User_id  int    `json:"user_id"`
 	Username string `json:"username"`
 	Password string `josn:"password"`
+}
+
+type NewCategory struct {
+	Name        string `json:"name"`
+	Color       int    `json:"color"`
+}
+
+type NewTask struct {
+	Name        string `json:"name"`
+	Category_id int    `json:"category_id"`
 }
 
 //************************************ Database ****************************************
@@ -242,8 +253,6 @@ func cors(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		log.Print(r)
-
 		w.Header().Set("Access-Control-Allow-Origin", "https://dodue.netlify.app")
     	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
     	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type,  Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, DNT, Referer, token, user_id, api_key, task_id, category_id, username, password, set-cookie")
@@ -345,7 +354,7 @@ func newTask(w http.ResponseWriter, r *http.Request) { //req: user_id, name
 	userCookie, _ := r.Cookie("user_id")
 	user_id, _ := strconv.Atoi(userCookie.Value)
 	decoder := json.NewDecoder(r.Body)
-	var task Task
+	var task NewTask
 	err := decoder.Decode(&task)
 	logError("newTask", err)
 
@@ -398,7 +407,7 @@ func newCategory(w http.ResponseWriter, r *http.Request) {
 	userCookie, _ := r.Cookie("user_id")
 	user_id, _ := strconv.Atoi(userCookie.Value)
 	decoder := json.NewDecoder(r.Body)
-	var category Category
+	var category NewCategory
 	err := decoder.Decode(&category)
 	logError("postCategory", err)
 
@@ -453,6 +462,7 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 		return
 	}
 	defer rows.Close()
+	
 	if !rows.Next() {
 		log.Print("login readUser; user not found")
 		writeErrorMessageToResponse(w, "user not found")
@@ -484,6 +494,7 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 			Secure:   true,
 			SameSite: http.SameSiteNoneMode,
 			Path: "/",
+			Expires: time.Now().AddDate(0, 6, 0),
 		})
 		http.SetCookie(w, &http.Cookie{
 			Name:  "user_id",
@@ -491,6 +502,7 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 			Secure:   true,
 			SameSite: http.SameSiteNoneMode,
 			Path: "/",
+			Expires: time.Now().AddDate(0, 6, 0),
 		})
 
 	}
