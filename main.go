@@ -147,6 +147,7 @@ func deleteTask(task_id int) error {
 	return err
 }
 
+
 //************************************ Category CRUD ****************************************
 
 func createCategory(name string, color int, user_id int) error {
@@ -159,6 +160,12 @@ func readCategories(user_id int) (pgx.Rows, error) {
 	rows, err := db.Query(context.Background(), "select * from categories where user_id=$1", user_id)
 
 	return rows, err
+}
+
+func deleteCategory(category_id int) error {
+	_, err := db.Exec(context.Background(), "delete from categories where id=$1", category_id)
+
+	return err
 }
 
 //************************************ User CRUD ****************************************
@@ -435,6 +442,26 @@ func newCategory(w http.ResponseWriter, r *http.Request) {
 	if err2 != nil {
 		logError("newCategory newCategory", err2)
 		writeErrorToResponse(w, err2)
+		return
+	}
+
+}
+
+func removeCategory(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != "DELETE" {
+		w.WriteHeader(404)
+		return
+	}
+
+	cId, _ := strconv.Atoi(r.Header.Get("category_id"))
+	
+	log.Print(r.Header.Get("category_id"))
+
+	err := deleteCategory(cId)
+	if err != nil {
+		logError("removeCategory deteleCategory", err)
+		writeErrorToResponse(w, err)
 		return
 	}
 
