@@ -142,7 +142,13 @@ func updateTaskDone(task_id int, done bool) error {
 }
 
 func deleteTask(task_id int) error {
-	_, err := db.Exec(context.Background(), "delete from widgets where task_id=$1", task_id)
+	_, err := db.Exec(context.Background(), "delete from tasks where task_id=$1", task_id)
+
+	return err
+}
+
+func deleteDoneTasks(user_id int) error {
+	_, err := db.Exec(context.Background(), "delete from tasks where done=$1 and user_id=$1", true, user_id)
 
 	return err
 }
@@ -467,6 +473,25 @@ func removeCategory(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func removeDoneTasks(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != "DELETE" {
+		w.WriteHeader(404)
+		return
+	}
+
+	userCookie, _ := r.Cookie("user_id")
+	user_id, _ := strconv.Atoi(userCookie.Value)
+
+	err := deleteDoneTasks(user_id)
+	if err != nil {
+		logError("removeDoneTasks deleteDoneTasks", err)
+		writeErrorToResponse(w, err)
+		return
+	}
+
+}
+
 func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 
 	if r.Method != "POST" {
@@ -593,14 +618,16 @@ func main() {
 	deleteCategoryHandler := http.HandlerFunc(removeCategory)
 	signupHandler := http.HandlerFunc(signup)
 	loginHandler := http.HandlerFunc(login)
+	deleteDoneTasksHandler := http.HandlerFunc(removeDoneTasks)
 
 	mux.Handle("/tasks", cors(authApi(authJwt(checkUserCookie(getTasksHandler)))))      //GET
 	mux.Handle("/tasks/new", cors(authApi(authJwt(checkUserCookie(newTaskHandler)))))  //POST
 	mux.Handle("/tasks/done", cors(authApi(authJwt(checkUserCookie(doneTaskHandler))))) //PUT
+	mux.Handle("/tasks/deletedone", cors(authApi(authJwt(checkUserCookie(deleteDoneTasksHandler))))) //DELETE
 
 	mux.Handle("/categories", cors(authApi(authJwt(checkUserCookie(getCategoriesHandler)))))   //GET
 	mux.Handle("/categories/new", cors(authApi(authJwt(checkUserCookie(newCategoryHandler))))) //POST
-	mux.Handle("/categories/delete", cors(authApi(authJwt(checkUserCookie(deleteCategoryHandler))))) //PUT
+	mux.Handle("/categories/delete", cors(authApi(authJwt(checkUserCookie(deleteCategoryHandler))))) //DELETE
 
 	mux.Handle("/signup", cors(authApi(signupHandler))) //POST
 	mux.Handle("/login", cors(authApi(loginHandler)))   //POST
