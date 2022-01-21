@@ -103,12 +103,12 @@ type User struct {
 
 type NewCategory struct {
 	Name        string `json:"name"`
-	Color       int    `json:"color"`
+	Color       string    `json:"color"`
 }
 
 type NewTask struct {
 	Name        string `json:"name"`
-	Category_id int    `json:"category_id"`
+	Category_id string    `json:"category_id"`
 }
 
 //************************************ Database ****************************************
@@ -372,7 +372,8 @@ func newTask(w http.ResponseWriter, r *http.Request) { //req: user_id, name
 		return
 	}
 
-	err2 := createTask(task.Name, user_id, task.Category_id)
+	cid, _ := strconv.Atoi(task.Category_id)
+	err2 := createTask(task.Name, user_id, cid)
 	logError("newTask createTask", err2)
 	if err2 != nil {
 		writeErrorToResponse(w, err2)
@@ -429,7 +430,8 @@ func newCategory(w http.ResponseWriter, r *http.Request) {
 	// 	return
 	// }
 
-	err2 := createCategory(category.Name, category.Color, user_id)
+	cColor , _ := strconv.Atoi(category.Color)
+	err2 := createCategory(category.Name, cColor, user_id)
 	if err2 != nil {
 		logError("newCategory newCategory", err2)
 		writeErrorToResponse(w, err2)
