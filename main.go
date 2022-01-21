@@ -110,7 +110,7 @@ type NewCategory struct {
 
 type NewTask struct {
 	Name        string `json:"name"`
-	Category_id string    `json:"category_id"`
+	Category_id int   `json:"category_id"`
 }
 
 //************************************ Database ****************************************
