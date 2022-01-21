@@ -47,13 +47,13 @@ func logError(msg string, err error) {
 	}
 }
 
-func hashPassword(password string) string {
+func hash(password string) string {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	logError("hashPassword", err)
 	return string(bytes)
 }
 
-func checkPasswordHash(password, hash string) error {
+func checkPassword(password, hash string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	logError("checkPasswordHash", err)
 
@@ -165,7 +165,7 @@ func readCategories(user_id int) (pgx.Rows, error) {
 
 func createUser(username string, password string) error {
 
-	_, err := db.Exec(context.Background(), "insert into users(username, password) values($1, $2)", username, hashPassword(password))
+	_, err := db.Exec(context.Background(), "insert into users(username, password) values($1, $2)", username, hash(password))
 
 	return err
 }
@@ -484,7 +484,7 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 		return
 	}
 
-	err3 := checkPasswordHash(password, user.Password)
+	err3 := checkPassword(password, user.Password)
 	if err3 != nil {
 
 		logError("login checkPasswordHash", err3)
