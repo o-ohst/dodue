@@ -28,6 +28,7 @@ func initLocalEnv() {
 func writeErrorToResponse(w http.ResponseWriter, err error) {
 	if err != nil {
 		w.WriteHeader(400)
+		log.Print(err)
 		e := Error{
 			Error: err.Error(),
 		}
@@ -37,6 +38,7 @@ func writeErrorToResponse(w http.ResponseWriter, err error) {
 
 func writeErrorMessageToResponse(w http.ResponseWriter, errorMessage string) {
 	w.WriteHeader(400)
+	log.Print(errorMessage)
 	e := Error{
 		Error: errorMessage,
 	}
