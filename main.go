@@ -366,7 +366,7 @@ func newTask(w http.ResponseWriter, r *http.Request) { //req: user_id, name
 		return
 	}
 
-	if task.Category_id == 0 {
+	if task.Category_id == "0" {
 		log.Print("empty category id")
 		writeErrorMessageToResponse(w, "no category_id provided")
 		return
