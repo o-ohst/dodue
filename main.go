@@ -381,14 +381,13 @@ func newTask(w http.ResponseWriter, r *http.Request) { //req: user_id, name
 		return
 	}
 
-	if task.Category_id == "0" {
+	if task.Category_id == 0 {
 		log.Print("empty category id")
 		writeErrorMessageToResponse(w, "no category_id provided")
 		return
 	}
 
-	cid, _ := strconv.Atoi(task.Category_id)
-	err2 := createTask(task.Name, user_id, cid)
+	err2 := createTask(task.Name, user_id, task.Category_id)
 	logError("newTask createTask", err2)
 	if err2 != nil {
 		writeErrorToResponse(w, err2)
