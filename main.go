@@ -142,7 +142,7 @@ func updateTaskDone(task_id int, done bool) error {
 }
 
 func deleteTask(task_id int) error {
-	_, err := db.Exec(context.Background(), "delete from widgets where id=$1", task_id)
+	_, err := db.Exec(context.Background(), "delete from widgets where task_id=$1", task_id)
 
 	return err
 }
@@ -163,7 +163,7 @@ func readCategories(user_id int) (pgx.Rows, error) {
 }
 
 func deleteCategory(category_id int) error {
-	_, err := db.Exec(context.Background(), "delete from categories where id=$1", category_id)
+	_, err := db.Exec(context.Background(), "delete from categories where category_id=$1", category_id)
 
 	return err
 }
