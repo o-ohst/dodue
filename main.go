@@ -590,6 +590,7 @@ func main() {
 	doneTaskHandler := http.HandlerFunc(doneTask)
 	getCategoriesHandler := http.HandlerFunc(getCategories)
 	newCategoryHandler := http.HandlerFunc(newCategory)
+	deleteCategoryHandler := http.HandlerFunc(removeCategory)
 	signupHandler := http.HandlerFunc(signup)
 	loginHandler := http.HandlerFunc(login)
 
@@ -599,6 +600,7 @@ func main() {
 
 	mux.Handle("/categories", cors(authApi(authJwt(checkUserCookie(getCategoriesHandler)))))   //GET
 	mux.Handle("/categories/new", cors(authApi(authJwt(checkUserCookie(newCategoryHandler))))) //POST
+	mux.Handle("/categories/delete", cors(authApi(authJwt(checkUserCookie(deleteCategoryHandler))))) //PUT
 
 	mux.Handle("/signup", cors(authApi(signupHandler))) //POST
 	mux.Handle("/login", cors(authApi(loginHandler)))   //POST
