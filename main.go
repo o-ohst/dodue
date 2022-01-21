@@ -204,12 +204,12 @@ func authApi(next http.Handler) http.Handler {
 
 		if apiKey == "" {
 			log.Print("no api key provided")
-			w.WriteHeader(403)
+			w.WriteHeader(401)
 			return
 		}
 
 		if apiKey != os.Getenv("API_SECRET") {
-			w.WriteHeader(403)
+			w.WriteHeader(401)
 			return
 		} else {
 			next.ServeHTTP(w, r)
@@ -249,7 +249,12 @@ func authJwt(next http.Handler) http.Handler {
 			}
 
 		} else {
-			writeErrorMessageToResponse(w, "no authorization token provided")
+			log.Print("no authorization token provided")
+			e := Error{
+				Error: "no authorization token provided",
+			}
+			w.WriteHeader(401)
+			json.NewEncoder(w).Encode(e)
 			return
 		}
 	})
