@@ -148,7 +148,7 @@ func deleteTask(task_id int) error {
 }
 
 func deleteDoneTasks(user_id int) error {
-	_, err := db.Exec(context.Background(), "delete from tasks where done=$1 and user_id=$1", true, user_id)
+	_, err := db.Exec(context.Background(), "delete from tasks where done=$1 and user_id=$2", true, user_id)
 
 	return err
 }
