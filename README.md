@@ -12,7 +12,7 @@ The app is hosted at: [https://dodue.netlify.app/](https://dodue.netlify.app/)
 
 <br>
 
-## CVWO Submission Details:
+## CVWO Submission Details
 - Name: Hao Sitong
 - Student Number: A0238908R
 
