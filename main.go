@@ -14,17 +14,18 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 
-	"github.com/joho/godotenv" //DEV
+	// "github.com/joho/godotenv" //DEV
 	"golang.org/x/crypto/bcrypt"
 )
 
-func initLocalEnv() {
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatalf("Error loading .env file")
-	}
-}
+// func initLocalEnv() {
+// 	err := godotenv.Load(".env")
+// 	if err != nil {
+// 		log.Fatalf("Error loading .env file")
+// 	}
+// }
 
+//respond with 400 and an "error" value in json
 func writeErrorToResponse(w http.ResponseWriter, err error) {
 	if err != nil {
 		w.WriteHeader(400)
@@ -36,6 +37,7 @@ func writeErrorToResponse(w http.ResponseWriter, err error) {
 	}
 }
 
+//respond with 400 and an "error" value in json
 func writeErrorMessageToResponse(w http.ResponseWriter, errorMessage string) {
 	w.WriteHeader(400)
 	log.Print(errorMessage)
@@ -60,7 +62,6 @@ func hash(password string) string {
 func checkPassword(password, hash string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	logError("checkPasswordHash", err)
-
 	return err
 }
 
@@ -145,18 +146,17 @@ func updateTaskDone(task_id int, done bool) error {
 	return err
 }
 
-func deleteTask(task_id int) error {
-	_, err := db.Exec(context.Background(), "delete from tasks where task_id=$1", task_id)
+// func deleteTask(task_id int) error { //unused for now
+// 	_, err := db.Exec(context.Background(), "delete from tasks where task_id=$1", task_id)
 
-	return err
-}
+// 	return err
+// }
 
 func deleteDoneTasks(user_id int) error {
 	_, err := db.Exec(context.Background(), "delete from tasks where done=$1 and user_id=$2", true, user_id)
 
 	return err
 }
-
 
 //************************************ Category CRUD ****************************************
 
@@ -260,6 +260,7 @@ func authJwt(next http.Handler) http.Handler {
 	})
 }
 
+//check if user_id cookie is included
 func checkUserCookie(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -296,7 +297,7 @@ func cors(next http.Handler) http.Handler {
 
 //******************************************** Endpoints *************************************
 
-func getTasks(w http.ResponseWriter, r *http.Request) { //req: user_id
+func getTasks(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != "GET" {
 		w.WriteHeader(404)
@@ -333,7 +334,7 @@ func getTasks(w http.ResponseWriter, r *http.Request) { //req: user_id
 
 }
 
-func getCategories(w http.ResponseWriter, r *http.Request) { //req: user_id
+func getCategories(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != "GET" {
 		w.WriteHeader(404)
@@ -368,7 +369,7 @@ func getCategories(w http.ResponseWriter, r *http.Request) { //req: user_id
 
 }
 
-func newTask(w http.ResponseWriter, r *http.Request) { //req: user_id, name
+func newTask(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != "POST" {
 		w.WriteHeader(404)
@@ -445,12 +446,6 @@ func newCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// if category.Color == 0 {
-	// 	log.Print("empty category id")
-	// 	writeErrorMessageToResponse(w, "no category_id provided")
-	// 	return
-	// }
-
 	cColor , _ := strconv.Atoi(category.Color)
 	err2 := createCategory(category.Name, cColor, user_id)
 	if err2 != nil {
@@ -458,7 +453,6 @@ func newCategory(w http.ResponseWriter, r *http.Request) {
 		writeErrorToResponse(w, err2)
 		return
 	}
-
 }
 
 func removeCategory(w http.ResponseWriter, r *http.Request) {
@@ -478,7 +472,6 @@ func removeCategory(w http.ResponseWriter, r *http.Request) {
 		writeErrorToResponse(w, err)
 		return
 	}
-
 }
 
 func removeDoneTasks(w http.ResponseWriter, r *http.Request) {
@@ -500,7 +493,7 @@ func removeDoneTasks(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func login(w http.ResponseWriter, r *http.Request) { //req: username, password
+func login(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != "POST" {
 		w.WriteHeader(404)
@@ -576,7 +569,7 @@ func login(w http.ResponseWriter, r *http.Request) { //req: username, password
 	}
 }
 
-func signup(w http.ResponseWriter, r *http.Request) { //req: username, password
+func signup(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != "POST" {
 		w.WriteHeader(404)
@@ -603,7 +596,6 @@ func signup(w http.ResponseWriter, r *http.Request) { //req: username, password
 		writeErrorToResponse(w, err)
 		return
 	}
-
 }
 
 //**************************************** Main **************************************
@@ -618,6 +610,7 @@ func main() {
 	//************************* Endpints *************************
 	mux := http.NewServeMux()
 
+	//handlers
 	getTasksHandler := http.HandlerFunc(getTasks)
 	newTaskHandler := http.HandlerFunc(newTask)
 	doneTaskHandler := http.HandlerFunc(doneTask)
@@ -628,6 +621,7 @@ func main() {
 	loginHandler := http.HandlerFunc(login)
 	deleteDoneTasksHandler := http.HandlerFunc(removeDoneTasks)
 
+	//endpoints
 	mux.Handle("/tasks", cors(authApi(authJwt(checkUserCookie(getTasksHandler)))))      //GET
 	mux.Handle("/tasks/new", cors(authApi(authJwt(checkUserCookie(newTaskHandler)))))  //POST
 	mux.Handle("/tasks/done", cors(authApi(authJwt(checkUserCookie(doneTaskHandler))))) //PUT
@@ -640,7 +634,7 @@ func main() {
 	mux.Handle("/signup", cors(authApi(signupHandler))) //POST
 	mux.Handle("/login", cors(authApi(loginHandler)))   //POST
 
+	//serve
 	port := os.Getenv("PORT")
 	http.ListenAndServe(":"+port, mux)
-
 }
