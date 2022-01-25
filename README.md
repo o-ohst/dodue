@@ -20,7 +20,6 @@ The app is hosted at: [https://dodue.netlify.app/](https://dodue.netlify.app/)
 - Name: Hao Sitong
 - Student Number: A0238908R
 - [Final Writeup](https://github.com/o-ohst/dodue-client/blob/master/cvwo_files/HaoSitong_A0238908R_FinalWriteup.pdf)
-- [User Manual](https://github.com/o-ohst/dodue-client/blob/master/cvwo_files/User%20Manual.pdf)
 
 <br>
 
