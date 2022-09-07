@@ -18,12 +18,12 @@ The app is hosted at: [https://dodue.netlify.app/](https://dodue.netlify.app/)
 
 ## Technicals
 Stack & libraries used:
-#### [Frontend](https://github.com/o-ohst/dodue-client) (hosted on Netlify)
+#### [Frontend](https://github.com/o-ohst/dodue-client) (deployed on Netlify)
 - React.js (Typescript)
 - Tailwind CSS
 - axios
 
-#### [Backend](https://github.com/o-ohst/dodue-server) (hosted on Heroku)
+#### [Backend](https://github.com/o-ohst/dodue-server) (deployed on Heroku)
 - Go
 - pgx (database)
 - PostgreSQL
